@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
   python-software-properties \
   software-properties-common \
   git \
+  nodejs \
   npm \
   wget \
   curl \
@@ -48,15 +49,7 @@ RUN rbenv rehash
 # Configure Gems
 RUN echo "gem: --no-ri --no-rdoc" > /root/.gemrc
 
-# Install NodeJS
-RUN add-apt-repository ppa:chris-lea/node.js
-RUN apt-get update
-RUN apt-get install -y nodejs
-RUN apt-get clean
-
-# Install Rails
-RUN gem install rails
-
+# Install sumo collector
 RUN wget -q -O /tmp/collector.deb https://s3-us-west-2.amazonaws.com/jssumo/sumocollector_19.110-9_amd64.deb
 RUN dpkg -i /tmp/collector.deb
 RUN rm /tmp/collector.deb
