@@ -1,10 +1,16 @@
 FROM debian:jessie
 MAINTAINER Jeff Miller <jeffery.f@gmail.com>
 
+# Install dependencies packages
 RUN apt-get update && apt-get install -y \
+  autoconf \
+  bison \
   build-essential \
-  python-software-properties \
-  software-properties-common \
+  locales \
+  libssl-dev \
+  libncurses5-dev\
+  libpq-dev \
+  imagemagick \
   git \
   nodejs \
   npm \
@@ -21,42 +27,27 @@ RUN apt-get update && apt-get install -y \
   libqt4-webkit \
   libqt4-dev \
   libmysqlclient-dev \
-  xvfb
+  xvfb && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install Rbenv
-RUN git clone git://github.com/sstephenson/rbenv.git /root/.rbenv
-RUN echo 'export PATH="/root/.rbenv/bin:$PATH"' >> /root/.bashrc
-RUN exec $SHELL
+RUN dpkg-reconfigure locales && \
+    locale-gen C.UTF-8 && \
+    /usr/sbin/update-locale LANG=C.UTF-8
 
-# Install Ruby-Build
-RUN git clone git://github.com/sstephenson/ruby-build.git /root/.rbenv/plugins/ruby-build
-RUN /root/.rbenv/plugins/ruby-build/install.sh
-RUN exec $SHELL
+ENV LC_ALL C.UTF-8
 
-RUN echo 'eval "$(rbenv init -)"' >> /etc/profile.d/rbenv.sh # or /etc/profile
-RUN echo 'eval "$(rbenv init -)"' >> .bashrc
+# Build & install ruby
+RUN mkdir /tmp/ruby && curl http://cache.ruby-lang.org/pub/ruby/2.2/ruby-2.2.1.tar.gz | tar xzf - --strip=1 -C /tmp/ruby && \
+    cd /tmp/ruby && \
+    autoconf && \
+    ./configure && \
+    make -j$(nproc) && \
+    make install && \
+    rm -rf /tmp/ruby
 
-# Expose Rbenv
-ENV PATH /root/.rbenv/shims:/root/.rbenv/bin:$PATH
-
-# Setup Rbenv
-RUN rbenv install 2.2.1
-RUN rbenv local 2.2.1
-RUN rbenv global 2.2.1
-RUN gem install bundler
-RUN rbenv rehash
-
-# Configure Gems
-RUN echo "gem: --no-ri --no-rdoc" > /root/.gemrc
+# Disable document generation, update RubyGems and install Rails/Bundler
+RUN echo "gem: --no-document" >> ~/.gemrc && gem update --system && gem install bundler
 
 # Install sumo collector
-RUN wget -q -O /tmp/collector.deb https://s3-us-west-2.amazonaws.com/jssumo/sumocollector_19.110-9_amd64.deb
-RUN dpkg -i /tmp/collector.deb
-RUN rm /tmp/collector.deb
-
-RUN apt-get remove --quiet --force-yes -y wget \
-  build-essential \
-  python-software-properties \
-  software-properties-common
-RUN apt-get clean
-RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+RUN wget -q -O /tmp/collector.deb https://collectors.sumologic.com/rest/download/deb/64 && \
+ dpkg -i /tmp/collector.deb && \
+ rm /tmp/collector.deb
